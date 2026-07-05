@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SETLIST</title>
+<style>
+/* ── Embedded Sora (base64 injected at build time; leave tokens intact) ── */
+@font-face{
+  font-family:"Sora";font-style:normal;font-weight:300;font-display:swap;
+  src:url(data:font/woff2;base64,@@SORA300@@) format("woff2");
+}
+@font-face{
+  font-family:"Sora";font-style:normal;font-weight:400;font-display:swap;
+  src:url(data:font/woff2;base64,@@SORA400@@) format("woff2");
+}
+@font-face{
+  font-family:"Sora";font-style:normal;font-weight:600;font-display:swap;
+  src:url(data:font/woff2;base64,@@SORA600@@) format("woff2");
+}
+@font-face{
+  font-family:"Sora";font-style:normal;font-weight:700;font-display:swap;
+  src:url(data:font/woff2;base64,@@SORA700@@) format("woff2");
+}
+
+:root{
+  --ground:#15161C;      /* dark, faint violet-blue */
+  --ground-2:#1E1F29;    /* raised input surface */
+  --matting:#0C0D11;     /* deepest — the gaps read as gallery matting */
+  --ink:#EDEBF2;         /* cool near-white */
+  --ink-dim:#71707D;     /* muted metadata */
+  --accent:#C7A468;      /* champagne gold — focus / active only */
+  --error:#C77A7A;       /* subtle red-ish accent for quiet errors */
+  --sans:"Sora","Helvetica Neue",Arial,system-ui,sans-serif;
+  --serif:"Sora","Helvetica Neue",Arial,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--ground)}
+[hidden]{display:none !important}
+
+/* ============================================================= *
+ *  LANDING VIEW — the empty input, centered on a dark screen
+ * ============================================================= */
+.landing{
+  position:relative;isolation:isolate;
+  min-height:100vh;width:100%;overflow:hidden;
+  background:var(--ground);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  padding:6vh 5vw;
+  -webkit-font-smoothing:antialiased;
+}
+/* soft ambient depth — nothing written, just light */
+.landing::before{
+  content:"";position:absolute;inset:0;z-index:-1;
+  background:
+    radial-gradient(70% 60% at 50% 46%, rgba(199,164,104,.05), transparent 62%),
+    radial-gradient(120% 100% at 50% 120%, rgba(40,42,58,.55), transparent 60%);
+}
+.landing ::selection{background:var(--accent);color:#161006}
+
+.finder-wrap{width:min(1180px,94vw)}
+.finder{
+  margin:0;width:100%;
+  display:flex;align-items:baseline;gap:clamp(16px,2.6vw,40px);
+  border:0;border-bottom:2px solid #34333f;
+  padding:0 2px clamp(18px,2.2vw,34px);
+  transition:border-color .3s ease;
+}
+.finder:focus-within{border-color:var(--accent)}
+.finder input{
+  flex:1;min-width:0;background:none;border:0;outline:0;color:var(--ink);
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(2rem,6.6vw,5.4rem);line-height:1.04;letter-spacing:-.02em;
+  caret-color:var(--accent);
+}
+.finder input::placeholder{color:var(--ink-dim);opacity:1}
+.finder input:disabled{opacity:.55}
+.finder button{
+  flex:none;align-self:center;border:0;cursor:pointer;background:none;
+  color:var(--ink-dim);line-height:1;
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(2.4rem,5.6vw,4.2rem);
+  transition:color .25s ease,transform .3s cubic-bezier(.2,.7,.2,1);
+}
+.finder button:hover,.finder:focus-within button{color:var(--accent);transform:translateX(6px)}
+.finder button:focus-visible{outline:2px solid var(--accent);outline-offset:6px;border-radius:2px}
+/* loading whisper — the arrow pulses while a playlist is fetched */
+.finder.is-loading input{opacity:.55}
+.finder.is-loading button{color:var(--accent);transform:none;animation:pulse 1.05s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.28}}
+
+/* quiet inline error near the input — dim, on-brand */
+.finder-error{
+  margin:clamp(14px,2vh,22px) 2px 0;min-height:1.3em;
+  font-family:var(--serif);font-weight:400;
+  font-size:clamp(.95rem,2.2vw,1.25rem);line-height:1.25;letter-spacing:.01em;
+  color:var(--error);opacity:0;transition:opacity .25s ease;
+}
+.finder-error.show{opacity:.9}
+
+@media (max-width:560px){
+  .finder{flex-wrap:nowrap}
+}
+
+/* ============================================================= *
+ *  RESULT VIEW — back + NOW VIEWING header + full-bleed wall
+ * ============================================================= */
+.setlist-app{
+  background:var(--ground);color:var(--ink);
+  font-family:var(--sans);
+  min-height:100vh;width:100%;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+.setlist-app ::selection{background:var(--accent);color:#161006}
+
+/* ---------- back to search ---------- */
+.back{
+  display:inline-flex;align-items:center;justify-content:center;
+  margin:clamp(22px,4vh,42px) 0 0 6vw;
+  width:58px;height:58px;border-radius:50%;
+  color:var(--ink-dim);text-decoration:none;
+  font-family:var(--serif);font-weight:300;font-size:2rem;line-height:1;
+  border:1px solid #2b2c38;background:transparent;cursor:pointer;
+  transition:color .2s ease,border-color .2s ease,transform .3s cubic-bezier(.2,.7,.2,1);
+}
+.back:hover{color:var(--accent);border-color:var(--accent);transform:translateX(-4px)}
+.back:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+
+/* ---------- loaded playlist header ---------- */
+.now{
+  padding:clamp(16px,3vh,30px) 6vw clamp(18px,3vh,30px);
+  display:flex;flex-direction:column;gap:10px;
+}
+.now .kicker{
+  display:inline-flex;align-items:center;gap:14px;
+  font-family:var(--sans);text-transform:uppercase;letter-spacing:.42em;
+  font-size:12px;font-weight:700;color:var(--accent);
+}
+.now .kicker::before{content:"";width:40px;height:2px;background:var(--accent)}
+.now .kicker .demo-tag{
+  letter-spacing:.24em;font-size:10px;font-weight:700;
+  color:var(--ink-dim);border:1px solid #2b2c38;border-radius:999px;
+  padding:3px 9px;
+}
+.now h2{
+  font-family:var(--serif);font-weight:400;
+  font-size:clamp(2.4rem,8vw,5.8rem);line-height:1;letter-spacing:-.03em;
+  margin:0;text-wrap:balance;
+}
+.now .meta{
+  font-family:var(--sans);font-size:13px;color:var(--ink-dim);
+  letter-spacing:.02em;font-variant-numeric:tabular-nums;
+}
+.now .meta b{color:var(--ink);font-weight:500}
+
+/* ---------- the wall ---------- */
+.wall{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(clamp(128px,13.5vw,196px),1fr));
+  gap:0;background:var(--matting);
+  padding:0;width:100%;
+}
+.tile{
+  position:relative;display:block;aspect-ratio:16/9;overflow:hidden;
+  border:0;padding:0;margin:0;cursor:pointer;background:#111;
+  border-radius:0;text-decoration:none;color:inherit;
+  transform:translateZ(0);
+  transition:transform .5s cubic-bezier(.2,.7,.2,1), filter .5s ease, box-shadow .5s ease;
+}
+.tile .art{position:absolute;inset:0}
+.tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.tile:hover{transform:scale(1.16);z-index:5;box-shadow:0 22px 60px rgba(0,0,0,.62)}
+.tile:focus-visible{outline:none;z-index:3}
+.tile:focus-visible::after{
+  content:"";position:absolute;inset:0;border:2px solid var(--accent);
+  border-radius:2px;pointer-events:none;box-shadow:0 0 0 3px rgba(199,164,104,.25);
+}
+/* on-demand caption */
+.cap{
+  position:absolute;left:0;right:0;bottom:0;
+  padding:34px 12px 11px;
+  background:linear-gradient(to top,rgba(8,9,12,.92) 8%,rgba(8,9,12,.55) 55%,transparent);
+  opacity:0;transform:translateY(6px);transition:opacity .35s ease,transform .35s ease;
+  pointer-events:none;
+}
+.tile:hover .cap,.tile:focus-visible .cap{opacity:1;transform:none}
+.cap .t{
+  font-family:var(--serif);font-weight:400;font-size:14px;line-height:1.15;
+  display:block;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.5);
+}
+.cap .d{
+  margin-top:5px;display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--sans);font-size:11px;color:#c9c6d1;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+/* focus-one gallery interaction */
+.wall.has-focus .tile:not(.on){filter:brightness(.4) saturate(.7)}
+.wall.has-focus .tile.on{transform:scale(1.16);z-index:6;box-shadow:0 22px 60px rgba(0,0,0,.62)}
+.wall.has-focus .tile.on::after{
+  content:"";position:absolute;inset:0;border:1.5px solid var(--accent);
+  border-radius:2px;pointer-events:none;
+}
+
+@media (max-width:560px){
+  .wall{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .finder{flex-wrap:wrap;border-radius:22px}
+  .finder button{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  .tile,.cap,.finder,.finder button{transition:none}
+  .tile:hover{transform:none}
+  .wall.has-focus .tile.on{transform:none}
+  .finder.is-loading button{animation:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== LANDING VIEW ===================== -->
+<main class="landing" id="landing">
+  <div class="finder-wrap">
+    <form class="finder" id="finder" role="search" aria-label="Load a YouTube playlist">
+      <input id="urlInput" type="text" placeholder="" aria-label="YouTube playlist URL" spellcheck="false" autocomplete="off" autofocus>
+      <button type="submit" aria-label="Open">&rarr;</button>
+    </form>
+    <p class="finder-error" id="finderError" role="alert" aria-live="polite"></p>
+  </div>
+</main>
+
+<!-- ===================== RESULT VIEW ===================== -->
+<div class="setlist-app" id="result" hidden>
+
+  <button class="back" id="backBtn" type="button" aria-label="Back to search">&larr;</button>
+
+  <section class="now">
+    <span class="kicker">Now viewing <span class="demo-tag" id="demoTag" hidden>demo</span></span>
+    <h2 id="nowTitle">&nbsp;</h2>
+    <span class="meta" id="nowMeta"></span>
+  </section>
+
+  <div class="wall" id="wall" role="list" aria-label="Playlist thumbnails"></div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ── API key ───────────────────────────────────────────────────────────────
+  // Paste your free YouTube Data API v3 key here. Visitors never see a prompt —
+  // this baked-in key powers every lookup. Leave "" to run the built-in demo.
+  // PUBLIC DEPLOY: this key is visible in the page source, so restrict it by
+  // HTTP referrer (your github.io domain) in the Google Cloud Console. See README.
+  const YT_API_KEY = "AIzaSyB0Qd6Ymqkzyo_WsxtKqn3qr0gDfK-Yb7c";
+
+  var API = "https://www.googleapis.com/youtube/v3";
+
+  // ---------- DOM handles ----------
+  var landing   = document.getElementById("landing");
+  var result    = document.getElementById("result");
+  var finder    = document.getElementById("finder");
+  var urlInput  = document.getElementById("urlInput");
+  var errorEl   = document.getElementById("finderError");
+  var backBtn   = document.getElementById("backBtn");
+  var wall      = document.getElementById("wall");
+  var nowTitle  = document.getElementById("nowTitle");
+  var nowMeta   = document.getElementById("nowMeta");
+  var demoTag   = document.getElementById("demoTag");
+
+  var isLoading = false;
+
+  /* =========================================================
+   *  DATA LAYER
+   * ========================================================= */
+
+  /**
+   * Extract a YouTube playlist ID from whatever the user pastes.
+   * Accepts full watch URLs (…&list=…), playlist?list=… URLs, and a raw ID.
+   * Valid playlist IDs start with PL, UU, LL, FL, OL or RD.
+   * Returns the ID string, or null if nothing valid is found.
+   */
+  function parsePlaylistId(raw){
+    if(!raw) return null;
+    var s = String(raw).trim();
+    var candidate = s;
+    // Prefer an explicit list= query param if present.
+    var m = s.match(/[?&]list=([^&#\s]+)/);
+    if(m){
+      try{ candidate = decodeURIComponent(m[1]); }catch(e){ candidate = m[1]; }
+    }
+    // Validate against the known playlist-ID shape.
+    if(/^(PL|UU|LL|FL|OL|RD)[A-Za-z0-9_-]{6,}$/.test(candidate)) return candidate;
+    return null;
+  }
+
+  /** Parse an ISO-8601 duration (e.g. "PT1H2M3S") into whole seconds. */
+  function iso8601ToSeconds(iso){
+    var m = /^P(?:\d+D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || "");
+    if(!m) return 0;
+    return (+(m[1]||0))*3600 + (+(m[2]||0))*60 + (+(m[3]||0));
+  }
+
+  /** Format whole seconds as a clock string: "6:42" or "1:02:03". */
+  function secondsToClock(sec){
+    sec = Math.max(0, Math.round(sec));
+    var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+    var pad = function(n){ return (n<10 ? "0" : "") + n; };
+    return h > 0 ? h + ":" + pad(m) + ":" + pad(s) : m + ":" + pad(s);
+  }
+
+  /** Convenience helper: ISO-8601 duration → clock string. */
+  function iso8601ToClock(iso){ return secondsToClock(iso8601ToSeconds(iso)); }
+
+  /** Sum of seconds → human total, e.g. "2h 41m" or "41m". */
+  function formatTotalRuntime(totalSec){
+    var h = Math.floor(totalSec/3600), m = Math.round((totalSec%3600)/60);
+    if(m === 60){ h++; m = 0; }
+    return h > 0 ? h + "h " + m + "m" : m + "m";
+  }
+
+  /** CSS-gradient thumbnail generator (from the approved mockup). */
+  function art(h,i){
+    var a=(h+40)%360, b=(h+340)%360;
+    switch(i%5){
+      case 0: return "radial-gradient(120% 95% at 28% 22%, hsl("+h+" 52% 34%), hsl("+b+" 42% 11%) 68%, #0b0c11)";
+      case 1: return "linear-gradient(158deg, hsl("+h+" 46% 32%), hsl("+b+" 38% 9%) 82%)";
+      case 2: return "linear-gradient(180deg, hsl("+h+" 34% 20%) 0%, hsl("+a+" 62% 46%) 52%, hsl("+a+" 30% 13%) 57%, #0b0c11)";
+      case 3: return "radial-gradient(80% 120% at 78% 78%, hsl("+a+" 58% 40%), hsl("+h+" 40% 12%) 62%, #0b0c11)";
+      default: return "conic-gradient(from 210deg at 40% 30%, hsl("+h+" 44% 30%), hsl("+a+" 40% 16%), hsl("+b+" 46% 26%), hsl("+h+" 44% 30%))";
+    }
+  }
+
+  // ---------- DEMO DATA (title, clock-duration, hue) from the mockup VIDS ----------
+  var DEMO_VIDS = [
+    ["Nocturne in Neon","6:42",268],
+    ["Analog Sunrise","5:03",28],
+    ["巡回 (Junkai)","4:11",205],
+    ["Casio Nights","3:48",300],
+    ["Floral Shoppe Revisited","7:19",320],
+    ["Rainy Tokyo 4AM","58:00",222],
+    ["Field Recording: Coast","34:12",190],
+    ["Live Session #212","22:03",12],
+    ["Patch of the Week 03","13:27",255],
+    ["The Grammar of Cuts","11:40",232],
+    ["Deconstructing the Zoom","8:22",344],
+    ["How Editing Creates Meaning","9:58",40]
+  ];
+
+  /** Build the built-in demo playlist so the app fully works with no key. */
+  function demoPlaylist(){
+    var COUNT = 24, videos = [], totalSec = 0;
+    for(var n=0; n<COUNT; n++){
+      var v = DEMO_VIDS[n % DEMO_VIDS.length];
+      var sec = clockToSeconds(v[1]);
+      totalSec += sec;
+      videos.push({ title:v[0], duration:v[1], hue:v[2], index:n, thumb:null, videoId:null });
+    }
+    return {
+      title:  "Late Night Synthwork",
+      owner:  "driftwave",
+      count:  COUNT,
+      totalSeconds: totalSec,
+      videos: videos,
+      demo:   true
+    };
+  }
+
+  /** Parse a clock string ("58:00", "1:02:03") back into seconds — demo only. */
+  function clockToSeconds(clock){
+    var p = String(clock).split(":").map(Number);
+    return p.reduce(function(acc,n){ return acc*60 + (n||0); }, 0);
+  }
+
+  /**
+   * LIVE MODE: fetch every playlistItems page, following nextPageToken so
+   * playlists larger than 50 are fully collected. Returns the raw item array.
+   */
+  async function fetchAllPlaylistItems(id, key){
+    var items = [], token = "", guard = 0;
+    do{
+      var url = API + "/playlistItems?part=snippet&maxResults=50&playlistId="
+              + encodeURIComponent(id)
+              + (token ? "&pageToken=" + encodeURIComponent(token) : "")
+              + "&key=" + encodeURIComponent(key);
+      var res = await fetch(url);
+      if(!res.ok) throw { status: res.status };
+      var data = await res.json();
+      items = items.concat(data.items || []);
+      token = data.nextPageToken || "";
+    } while(token && ++guard < 100); // guard against runaway pagination
+    return items;
+  }
+
+  /**
+   * LIVE MODE: fetch contentDetails for up to 50 video IDs per request,
+   * batching as needed. Returns a map of videoId → { clock, seconds }.
+   */
+  async function fetchDurations(ids, key){
+    var map = {};
+    for(var i=0; i<ids.length; i+=50){
+      var batch = ids.slice(i, i+50);
+      var url = API + "/videos?part=contentDetails&id=" + batch.join(",")
+              + "&key=" + encodeURIComponent(key);
+      var res = await fetch(url);
+      if(!res.ok) throw { status: res.status };
+      var data = await res.json();
+      (data.items || []).forEach(function(it){
+        var iso = it.contentDetails && it.contentDetails.duration;
+        var sec = iso8601ToSeconds(iso);
+        map[it.id] = { clock: secondsToClock(sec), seconds: sec };
+      });
+    }
+    return map;
+  }
+
+  /** LIVE MODE: fetch the playlist's title / owner / item count. */
+  async function fetchPlaylistMeta(id, key){
+    var url = API + "/playlists?part=snippet,contentDetails&id=" + encodeURIComponent(id)
+            + "&key=" + encodeURIComponent(key);
+    var res = await fetch(url);
+    if(!res.ok) throw { status: res.status };
+    var data = await res.json();
+    var it = (data.items || [])[0];
+    if(!it) throw { status: 404 };
+    return {
+      title: it.snippet.title,
+      owner: it.snippet.channelTitle,
+      count: it.contentDetails ? it.contentDetails.itemCount : undefined
+    };
+  }
+
+  /**
+   * LIVE MODE orchestrator: assemble a normalized playlist object
+   * { title, owner, count, totalSeconds, videos:[{title,duration,thumb,videoId}] }.
+   */
+  async function fetchLivePlaylist(id, key){
+    var rawItems = await fetchAllPlaylistItems(id, key);
+
+    // Skip private / deleted items gracefully.
+    var usable = rawItems.filter(function(it){
+      var sn = it.snippet || {};
+      var vid = sn.resourceId && sn.resourceId.videoId;
+      var t = sn.title;
+      if(!vid) return false;
+      if(t === "Private video" || t === "Deleted video") return false;
+      return true;
+    });
+
+    if(!usable.length) throw { status: "empty" };
+
+    var ids = usable.map(function(it){ return it.snippet.resourceId.videoId; });
+    var durations = await fetchDurations(ids, key);
+    var meta = await fetchPlaylistMeta(id, key);
+
+    var totalSec = 0;
+    var videos = usable.map(function(it, n){
+      var sn = it.snippet;
+      var vid = sn.resourceId.videoId;
+      var d = durations[vid] || { clock:"", seconds:0 };
+      totalSec += d.seconds;
+      var thumbs = sn.thumbnails || {};
+      var chosen = thumbs.medium || thumbs.high || thumbs.standard || thumbs.default || {};
+      return {
+        title:   sn.title || "Untitled",
+        duration:d.clock,
+        thumb:   chosen.url || null,
+        hue:     (n*47) % 360,   // fallback tint if a thumb fails
+        index:   n,
+        videoId: vid
+      };
+    });
+
+    return {
+      title:  meta.title || "Untitled playlist",
+      owner:  meta.owner || "unknown",
+      count:  (meta.count != null ? meta.count : videos.length),
+      totalSeconds: totalSec,
+      videos: videos,
+      demo:   false
+    };
+  }
+
+  /* =========================================================
+   *  RENDER
+   * ========================================================= */
+
+  /** Basic HTML-escape for text placed into innerHTML. */
+  function esc(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+
+  /** Render one tile — a real <img> in live mode, a CSS-gradient in demo mode. */
+  function tileHtml(v){
+    var cap = '<span class="cap">'
+            +   '<span class="t">' + esc(v.title) + '</span>'
+            +   '<span class="d">' + esc(v.duration || "") + '</span>'
+            + '</span>';
+    if(v.thumb){
+      var href = v.videoId ? ("https://www.youtube.com/watch?v=" + encodeURIComponent(v.videoId)) : "#";
+      return '<a class="tile" role="listitem" href="' + href + '" target="_blank" rel="noopener" '
+           +   'aria-label="' + esc(v.title) + (v.duration ? ", " + esc(v.duration) : "") + '">'
+           +   '<img src="' + esc(v.thumb) + '" loading="lazy" alt="' + esc(v.title) + '">'
+           +   cap
+           + '</a>';
+    }
+    // demo tile — CSS gradient art, behaves as a focusable gallery button
+    return '<button class="tile" role="listitem" type="button" '
+         +   'aria-label="' + esc(v.title) + (v.duration ? ", " + esc(v.duration) : "") + '">'
+         +   '<span class="art" style="background:' + art(v.hue, v.index) + '"></span>'
+         +   cap
+         + '</button>';
+  }
+
+  /** Paint the result view from a normalized playlist object. */
+  function renderResult(pl){
+    nowTitle.textContent = pl.title;
+
+    var total = formatTotalRuntime(pl.totalSeconds);
+    nowMeta.innerHTML =
+        '<b>' + esc(pl.count) + '</b> videos &nbsp;·&nbsp; '
+      + '<b>' + esc(total) + '</b> total &nbsp;·&nbsp; by <b>' + esc(pl.owner) + '</b>';
+
+    demoTag.hidden = !pl.demo;
+
+    wall.innerHTML = pl.videos.map(tileHtml).join("");
+    wall.classList.remove("has-focus");
+  }
+
+  /* =========================================================
+   *  VIEW STATE / FLOW
+   * ========================================================= */
+
+  function showError(msg){
+    errorEl.textContent = msg;
+    errorEl.classList.add("show");
+  }
+  function clearError(){
+    errorEl.textContent = "";
+    errorEl.classList.remove("show");
+  }
+
+  function setLoading(on){
+    isLoading = on;
+    finder.classList.toggle("is-loading", on);
+    urlInput.disabled = on;
+  }
+
+  function showLanding(){
+    result.hidden = true;
+    landing.hidden = false;
+    setLoading(false);
+    // Focus the input for immediate re-typing (unless reduced-motion users prefer not).
+    try{ urlInput.focus(); }catch(e){}
+  }
+
+  function showResult(){
+    landing.hidden = true;
+    result.hidden = false;
+    window.scrollTo(0,0);
+  }
+
+  /** Map a thrown API error to a short, human, on-brand message. */
+  function humanError(err){
+    var s = err && err.status;
+    if(s === "empty") return "That playlist looks empty — nothing to show.";
+    if(s === 404)     return "Couldn't find that playlist — check the link.";
+    if(s === 403)     return "Couldn't load that playlist — check your API key or quota.";
+    return "Couldn't load that playlist — check the link or your API key.";
+  }
+
+  /**
+   * Load a playlist by ID: demo mode when no key, live fetch otherwise.
+   * On success renders the result view; on failure stays on the landing
+   * with a quiet inline message. `fromHash` avoids re-writing the URL hash.
+   */
+  async function loadPlaylist(id, fromHash){
+    clearError();
+
+    // Reflect state in the URL hash so refresh / back works.
+    if(!fromHash){
+      var newHash = "#list=" + id;
+      if(location.hash !== newHash) location.hash = newHash;
+    }
+
+    // No key configured → built-in demo so the page still shows something.
+    if(YT_API_KEY === ""){
+      renderResult(demoPlaylist());
+      showResult();
+      return;
+    }
+
+    // LIVE — fetch the real playlist from the YouTube Data API.
+    setLoading(true);
+    try{
+      var pl = await fetchLivePlaylist(id, YT_API_KEY);
+      renderResult(pl);
+      setLoading(false);
+      showResult();
+    }catch(err){
+      setLoading(false);
+      // stay on landing (or return to it) with a quiet message
+      if(!fromHash && location.hash){ history.replaceState(null, "", location.pathname + location.search); }
+      showLanding();
+      showError(humanError(err));
+    }
+  }
+
+  /** Handle a submitted URL/ID string from the input. */
+  function submitInput(){
+    if(isLoading) return;
+    var id = parsePlaylistId(urlInput.value);
+    if(!id){
+      showError("That doesn't look like a playlist link.");
+      return;
+    }
+    loadPlaylist(id, false);
+  }
+
+  /* =========================================================
+   *  EVENTS
+   * ========================================================= */
+
+  finder.addEventListener("submit", function(e){
+    e.preventDefault();
+    submitInput();
+  });
+  urlInput.addEventListener("input", clearError);
+
+  backBtn.addEventListener("click", function(e){
+    e.preventDefault();
+    // Clear the hash and return to the landing.
+    if(location.hash){ history.replaceState(null, "", location.pathname + location.search); }
+    showLanding();
+    clearError();
+  });
+
+  // Quiet gallery interaction (demo tiles): click focuses one, click again releases.
+  // Keep an enlarging edge tile inside the viewport so its caption isn't clipped:
+  // grow from the left edge for the first column, the right edge for the last, else centre.
+  function anchorZoom(e){
+    var t = e.target.closest && e.target.closest(".tile");
+    if(!t) return;
+    var r = t.getBoundingClientRect();
+    var vw = window.innerWidth || document.documentElement.clientWidth;
+    var pad = 56;
+    t.style.transformOrigin =
+      (r.left < pad ? "left" : (r.right > vw - pad ? "right" : "center")) + " center";
+  }
+  wall.addEventListener("mouseover", anchorZoom);
+  wall.addEventListener("focusin", anchorZoom);
+
+  wall.addEventListener("click", function(e){
+    var t = e.target.closest(".tile");
+    if(!t || t.tagName === "A") return; // links navigate; only buttons toggle focus
+    var on = t.classList.contains("on");
+    wall.querySelectorAll(".tile.on").forEach(function(x){ x.classList.remove("on"); });
+    if(on){ wall.classList.remove("has-focus"); }
+    else  { t.classList.add("on"); wall.classList.add("has-focus"); }
+  });
+  wall.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){
+      wall.classList.remove("has-focus");
+      wall.querySelectorAll(".tile.on").forEach(function(x){ x.classList.remove("on"); });
+    }
+  });
+
+  // Deep-link support: load from #list=… on first paint and on hash changes.
+  function syncFromHash(){
+    var m = (location.hash || "").match(/list=([^&]+)/);
+    if(m){
+      var id = parsePlaylistId(decodeURIComponent(m[1]));
+      if(id){ loadPlaylist(id, true); return; }
+    }
+    showLanding();
+  }
+  window.addEventListener("hashchange", syncFromHash);
+
+  // Initial paint.
+  syncFromHash();
+})();
+</script>
+</body>
+</html>
