@@ -111,7 +111,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
   font-family:var(--sans);
   height:100vh;width:100%;overflow:hidden;
   -webkit-font-smoothing:antialiased;
-  --tile:248px;   /* thumbnail min width — driven by the size slider */
+  --tile:200px;   /* album-cover min width — driven by the size slider */
 }
 .setlist-app ::selection{background:var(--accent);color:#161006}
 
@@ -197,7 +197,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
   padding:0;width:100%;
 }
 .tile{
-  position:relative;display:block;aspect-ratio:16/9;overflow:hidden;
+  position:relative;display:block;aspect-ratio:1/1;overflow:hidden;
   border:0;padding:0;margin:0;cursor:pointer;background:#111;
   border-radius:0;text-decoration:none;color:inherit;
   transform:translateZ(0);
@@ -341,7 +341,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
   <button class="back" id="backBtn" type="button" aria-label="Back to search">&larr;</button>
 
   <div class="sizer-wrap">
-    <input type="range" class="sizer" id="sizer" min="150" max="460" value="248" aria-label="Thumbnail size">
+    <input type="range" class="sizer" id="sizer" min="130" max="420" value="200" aria-label="Cover size">
   </div>
 
   <div class="pager" id="pager">
