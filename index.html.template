@@ -109,7 +109,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
   position:relative;
   background:var(--ground);color:var(--ink);
   font-family:var(--sans);
-  min-height:100vh;width:100%;overflow-x:hidden;
+  height:100vh;width:100%;overflow:hidden;
   -webkit-font-smoothing:antialiased;
   --tile:248px;   /* thumbnail min width — driven by the size slider */
 }
@@ -164,7 +164,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
 
 /* ---------- loaded playlist header ---------- */
 .now{
-  padding:clamp(16px,3vh,30px) 6vw clamp(18px,3vh,30px);
+  padding:clamp(90px,12vh,120px) 6vw clamp(18px,3vh,30px);
   display:flex;flex-direction:column;gap:10px;
 }
 .now .kicker{
@@ -237,11 +237,82 @@ html,body{margin:0;padding:0;background:var(--ground)}
   border-radius:2px;pointer-events:none;
 }
 
+/* ============================================================= *
+ *  SWIPE PAGER — Insights | Wall | Shuffle (Instagram-style)
+ * ============================================================= */
+.back{z-index:30}
+.sizer-wrap{z-index:26;transition:opacity .25s ease}
+.sizer-wrap.hide{opacity:0;pointer-events:none}
+.pager{
+  display:flex;height:100%;width:100%;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+.pager::-webkit-scrollbar{display:none}
+.panel{flex:0 0 100%;height:100%;scroll-snap-align:center;position:relative;overflow-y:auto;overflow-x:hidden}
+.panel::-webkit-scrollbar{width:0}
+.wallp .wall{padding-bottom:74px}
+
+/* Insights — vertical timeline */
+.insights{background:linear-gradient(180deg,#16171E,#101116)}
+.ins-head{padding:clamp(90px,12vh,120px) 8vw clamp(18px,3vh,28px)}
+.i-eyebrow{display:inline-flex;align-items:center;gap:13px;text-transform:uppercase;
+  letter-spacing:.42em;font-size:11px;font-weight:700;color:var(--accent)}
+.i-eyebrow::before{content:"";width:34px;height:2px;background:var(--accent)}
+.bigstat{margin-top:14px;display:flex;flex-direction:column;gap:4px}
+.bigstat .v{font-weight:300;font-size:clamp(3rem,10vw,7rem);line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.bigstat .v small{font-size:.28em;color:var(--ink-dim);letter-spacing:0;font-weight:400}
+.bigstat .sub{font-size:14px;color:var(--ink-dim)}
+.bigstat .sub b{color:var(--ink);font-weight:500}
+.vstack{display:flex;flex-direction:column;padding-bottom:92px}
+.vseg{position:relative;display:flex;align-items:center;gap:18px;padding:12px 8vw;color:#fff;
+  overflow:hidden;cursor:pointer;text-decoration:none;
+  background-color:#1a1b22;background-size:cover;background-position:center;background-repeat:no-repeat;
+  border-top:1px solid rgba(0,0,0,.28);transition:filter .2s ease}
+.vseg::before{content:"";position:absolute;inset:0;background:rgba(11,12,17,.56);transition:background .2s ease}
+.vseg:hover::before{background:rgba(11,12,17,.32)}
+.vseg>*{position:relative;z-index:1}
+.vseg .vt{flex:1;font-size:15px;font-weight:600;line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.75)}
+.vseg .vd{flex:0 0 auto;font-size:14px;color:rgba(255,255,255,.92);font-variant-numeric:tabular-nums;text-shadow:0 1px 8px rgba(0,0,0,.75)}
+.vseg:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* Shuffle — random spotlight */
+.shuffle{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:clamp(80px,12vh,120px) 6vw 12vh;gap:clamp(20px,3.5vh,38px);
+  background:radial-gradient(70% 60% at 50% 40%,#1a1b22,#0f1015)}
+.spot{width:min(680px,86vw);aspect-ratio:16/9;border-radius:18px;overflow:hidden;position:relative;
+  box-shadow:0 34px 90px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.06)}
+.spot .art{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .35s ease}
+.spot::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(8,9,12,.45),transparent 55%)}
+.spot-title{font-weight:400;font-size:clamp(1.3rem,3.4vw,2rem);letter-spacing:-.02em;margin:0;max-width:86vw;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.spot-dur{font-size:13px;color:var(--ink-dim);font-variant-numeric:tabular-nums;margin-top:6px}
+.reshuffle{width:66px;height:66px;border-radius:50%;border:1px solid #2b2c38;background:transparent;color:var(--ink);
+  font-size:1.7rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  transition:transform .5s cubic-bezier(.2,.7,.2,1),color .2s ease,border-color .2s ease}
+.reshuffle:hover{color:var(--accent);border-color:var(--accent);transform:rotate(180deg)}
+.reshuffle:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+
+/* left / right arrows + dots */
+.nav{position:absolute;top:50%;transform:translateY(-50%);z-index:25;width:54px;height:54px;border-radius:50%;
+  border:1px solid #2b2c38;background:rgba(18,19,25,.55);color:var(--ink-dim);font-size:1.7rem;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  transition:color .2s ease,border-color .2s ease,opacity .25s ease,transform .3s ease}
+.nav.prev{left:clamp(10px,2vw,28px)} .nav.next{right:clamp(10px,2vw,28px)}
+.nav:hover{color:var(--accent);border-color:var(--accent)}
+.nav.prev:hover{transform:translateY(-50%) translateX(-3px)} .nav.next:hover{transform:translateY(-50%) translateX(3px)}
+.nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.nav.hide{opacity:0;pointer-events:none}
+.dots{position:absolute;left:0;right:0;bottom:clamp(16px,3vh,30px);z-index:20;display:flex;justify-content:center;align-items:center;gap:11px}
+.dots button{width:7px;height:7px;border-radius:50%;border:0;padding:0;cursor:pointer;background:#3a3b46;transition:all .3s ease}
+.dots button.on{background:var(--accent);width:22px;border-radius:4px}
+
 @media (max-width:560px){
   .setlist-app{--tile:160px}
   .finder{flex-wrap:wrap;border-radius:22px}
   .finder button{width:100%}
   .sizer-wrap{display:none}   /* size control hidden on phones — the wall fills naturally */
+  .nav{width:46px;height:46px;font-size:1.4rem}
 }
 @media (prefers-reduced-motion:reduce){
   .tile,.cap,.finder,.finder button{transition:none}
@@ -273,13 +344,43 @@ html,body{margin:0;padding:0;background:var(--ground)}
     <input type="range" class="sizer" id="sizer" min="150" max="460" value="248" aria-label="Thumbnail size">
   </div>
 
-  <section class="now">
-    <span class="kicker">Now viewing <span class="demo-tag" id="demoTag" hidden>demo</span></span>
-    <h2 id="nowTitle">&nbsp;</h2>
-    <span class="meta" id="nowMeta"></span>
-  </section>
+  <div class="pager" id="pager">
 
-  <div class="wall" id="wall" role="list" aria-label="Playlist thumbnails"></div>
+    <!-- Insights — vertical timeline, band height = runtime -->
+    <section class="panel insights">
+      <div class="ins-head">
+        <span class="i-eyebrow">Insights</span>
+        <div class="bigstat"><span class="v" id="insTot">&nbsp;</span><span class="sub" id="insSub"></span></div>
+      </div>
+      <div class="vstack" id="vstack"></div>
+    </section>
+
+    <!-- Wall — the thumbnail wall (home) -->
+    <section class="panel wallp">
+      <section class="now">
+        <span class="kicker">Now viewing <span class="demo-tag" id="demoTag" hidden>demo</span></span>
+        <h2 id="nowTitle">&nbsp;</h2>
+        <span class="meta" id="nowMeta"></span>
+      </section>
+      <div class="wall" id="wall" role="list" aria-label="Playlist thumbnails"></div>
+    </section>
+
+    <!-- Shuffle — a random spotlight -->
+    <section class="panel shuffle">
+      <div class="spot"><span class="art" id="spotArt"></span></div>
+      <div><h2 class="spot-title" id="spotTitle">&nbsp;</h2><div class="spot-dur" id="spotDur"></div></div>
+      <button class="reshuffle" id="reshuffle" type="button" aria-label="Shuffle again">&#8635;</button>
+    </section>
+
+  </div>
+
+  <button class="nav prev hide" id="navPrev" type="button" aria-label="Previous panel">&#8249;</button>
+  <button class="nav next" id="navNext" type="button" aria-label="Next panel">&#8250;</button>
+  <div class="dots" id="dots">
+    <button data-i="0" type="button" aria-label="Insights"></button>
+    <button data-i="1" type="button" aria-label="Wall" class="on"></button>
+    <button data-i="2" type="button" aria-label="Shuffle"></button>
+  </div>
 
 </div>
 
@@ -308,8 +409,22 @@ html,body{margin:0;padding:0;background:var(--ground)}
   var nowMeta   = document.getElementById("nowMeta");
   var demoTag   = document.getElementById("demoTag");
   var sizer     = document.getElementById("sizer");
+  var sizerWrap = document.querySelector(".sizer-wrap");
+  // swipe pager + panels
+  var pager     = document.getElementById("pager");
+  var navPrev   = document.getElementById("navPrev");
+  var navNext   = document.getElementById("navNext");
+  var dots      = [].slice.call(document.querySelectorAll("#dots button"));
+  var insTot    = document.getElementById("insTot");
+  var insSub    = document.getElementById("insSub");
+  var vstack    = document.getElementById("vstack");
+  var spotArt   = document.getElementById("spotArt");
+  var spotTitle = document.getElementById("spotTitle");
+  var spotDur   = document.getElementById("spotDur");
+  var reshuffle = document.getElementById("reshuffle");
 
   var isLoading = false;
+  var shuffleVids = [];
 
   /* =========================================================
    *  DATA LAYER
@@ -395,7 +510,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
       var v = DEMO_VIDS[n % DEMO_VIDS.length];
       var sec = clockToSeconds(v[1]);
       totalSec += sec;
-      videos.push({ title:v[0], duration:v[1], hue:v[2], index:n, thumb:null, videoId:null });
+      videos.push({ title:v[0], duration:v[1], seconds:sec, hue:v[2], index:n, thumb:null, videoId:null });
     }
     return {
       title:  "Late Night Synthwork",
@@ -505,6 +620,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
       return {
         title:   sn.title || "Untitled",
         duration:d.clock,
+        seconds: d.seconds,
         thumb:   chosen.url || null,
         hue:     (n*47) % 360,   // fallback tint if a thumb fails
         index:   n,
@@ -555,19 +671,60 @@ html,body{margin:0;padding:0;background:var(--ground)}
          + '</button>';
   }
 
-  /** Paint the result view from a normalized playlist object. */
-  function renderResult(pl){
-    nowTitle.textContent = pl.title;
+  /** CSS background for a band/spot — the darkened real thumbnail, or a gradient in demo. */
+  function bgFor(v){
+    return v.thumb ? "url('" + encodeURI(v.thumb) + "')" : art(v.hue || 0, v.index || 0);
+  }
 
+  /** Set the Shuffle spotlight to a video (animated on reshuffle). */
+  function setSpot(v, animate){
+    if(!v){ return; }
+    var apply = function(){
+      spotArt.style.backgroundImage = bgFor(v);
+      spotTitle.textContent = v.title;
+      spotDur.textContent = v.duration || "";
+      spotArt.style.opacity = 1;
+    };
+    if(animate){ spotArt.style.opacity = 0; setTimeout(apply, 160); }
+    else { apply(); }
+  }
+
+  /** Paint the result view (Insights timeline + Wall + Shuffle) from a playlist object. */
+  function renderResult(pl){
+    // --- Wall header ---
+    nowTitle.textContent = pl.title;
     var total = formatTotalRuntime(pl.totalSeconds);
     nowMeta.innerHTML =
         '<b>' + esc(pl.count) + '</b> videos &nbsp;·&nbsp; '
       + '<b>' + esc(total) + '</b> total &nbsp;·&nbsp; by <b>' + esc(pl.owner) + '</b>';
-
     demoTag.hidden = !pl.demo;
 
+    // --- Wall grid ---
     wall.innerHTML = pl.videos.map(tileHtml).join("");
     wall.classList.remove("has-focus");
+
+    // --- Insights: big total + vertical timeline (height = runtime) ---
+    var th = Math.floor(pl.totalSeconds / 3600), tm = Math.floor(pl.totalSeconds % 3600 / 60);
+    insTot.innerHTML = th + '<small>h</small> ' + tm + '<small>m</small>';
+    insSub.innerHTML = '<b>' + esc(pl.count) + '</b> videos in “' + esc(pl.title) + '”';
+    var SCALE = 0.42, vh = "";
+    pl.videos.forEach(function(v, i){
+      var ht = Math.max(54, Math.round((v.seconds || 0) * SCALE));
+      var open = v.videoId ? ("https://www.youtube.com/watch?v=" + encodeURIComponent(v.videoId)) : null;
+      var tag = open ? "a" : "div";
+      var attr = open ? (' href="' + open + '" target="_blank" rel="noopener"') : "";
+      vh += '<' + tag + ' class="vseg"' + attr
+          +   ' style="height:' + ht + 'px;background-image:' + bgFor(v) + '"'
+          +   ' title="' + esc(v.title) + ' · ' + esc(v.duration || "") + '">'
+          +   '<span class="vt">' + esc(v.title) + '</span>'
+          +   '<span class="vd">' + esc(v.duration || "") + '</span>'
+          + '</' + tag + '>';
+    });
+    vstack.innerHTML = vh;
+
+    // --- Shuffle: pick a starting video ---
+    shuffleVids = pl.videos;
+    setSpot(pl.videos[Math.floor(Math.random() * pl.videos.length)], false);
   }
 
   /* =========================================================
@@ -600,7 +757,24 @@ html,body{margin:0;padding:0;background:var(--ground)}
   function showResult(){
     landing.hidden = true;
     result.hidden = false;
+    // Start on the Wall (centre) panel once the view has real dimensions.
+    requestAnimationFrame(function(){
+      if(pager){ pager.scrollLeft = pager.clientWidth; }
+      updateChrome();
+    });
     window.scrollTo(0,0);
+  }
+
+  // --- swipe pager helpers ---
+  function curPanel(){ return pager ? Math.round(pager.scrollLeft / pager.clientWidth) : 1; }
+  function toPanel(i){ if(pager){ pager.scrollTo({ left: i * pager.clientWidth, behavior: "smooth" }); } }
+  function updateChrome(){
+    if(!pager) return;
+    var i = curPanel();
+    dots.forEach(function(d, k){ d.classList.toggle("on", k === i); });
+    if(navPrev) navPrev.classList.toggle("hide", i <= 0);
+    if(navNext) navNext.classList.toggle("hide", i >= 2);
+    if(sizerWrap) sizerWrap.classList.toggle("hide", i !== 1); // size slider only on the Wall
   }
 
   /** Map a thrown API error to a short, human, on-brand message. */
@@ -714,6 +888,22 @@ html,body{margin:0;padding:0;background:var(--ground)}
       wall.querySelectorAll(".tile.on").forEach(function(x){ x.classList.remove("on"); });
     }
   });
+
+  // Swipe pager: keep dots / arrows / size-slider in sync, wire arrows + dots + shuffle.
+  if(pager){
+    var pgT;
+    pager.addEventListener("scroll", function(){ clearTimeout(pgT); pgT = setTimeout(updateChrome, 50); });
+    if(navPrev) navPrev.addEventListener("click", function(){ toPanel(Math.max(0, curPanel() - 1)); });
+    if(navNext) navNext.addEventListener("click", function(){ toPanel(Math.min(2, curPanel() + 1)); });
+    dots.forEach(function(d){ d.addEventListener("click", function(){ toPanel(+d.getAttribute("data-i")); }); });
+    window.addEventListener("resize", updateChrome);
+  }
+  if(reshuffle){
+    reshuffle.addEventListener("click", function(){
+      if(!shuffleVids.length) return;
+      setSpot(shuffleVids[Math.floor(Math.random() * shuffleVids.length)], true);
+    });
+  }
 
   // Deep-link support: load from #list=… on first paint and on hash changes.
   function syncFromHash(){
