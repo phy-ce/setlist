@@ -117,8 +117,8 @@ html,body{margin:0;padding:0;background:var(--ground)}
 
 /* ---------- back to search ---------- */
 .back{
+  position:absolute;top:clamp(22px,4vh,42px);left:6vw;
   display:inline-flex;align-items:center;justify-content:center;
-  margin:clamp(22px,4vh,42px) 0 0 6vw;
   width:58px;height:58px;border-radius:50%;
   color:var(--ink-dim);text-decoration:none;
   font-family:var(--serif);font-weight:300;font-size:2rem;line-height:1;
@@ -281,9 +281,20 @@ html,body{margin:0;padding:0;background:var(--ground)}
   padding:clamp(80px,12vh,120px) 6vw 12vh;gap:clamp(20px,3.5vh,38px);
   background:radial-gradient(70% 60% at 50% 40%,#1a1b22,#0f1015)}
 .spot{width:min(680px,86vw);aspect-ratio:16/9;border-radius:18px;overflow:hidden;position:relative;
-  box-shadow:0 34px 90px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.06)}
-.spot .art{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .35s ease}
-.spot::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(8,9,12,.45),transparent 55%)}
+  box-shadow:0 34px 90px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.06);
+  padding:0;margin:0;background:#111;cursor:pointer;display:block}
+.spot .art{position:absolute;inset:0;background-size:cover;background-position:center;background-color:#111;transition:opacity .35s ease}
+.spot::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(8,9,12,.45),transparent 55%);transition:opacity .3s ease}
+.spot-play{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:1.5rem;pointer-events:none;transition:transform .3s cubic-bezier(.2,.7,.2,1),opacity .2s ease;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.spot-play::before{content:"";position:absolute;width:74px;height:74px;border-radius:50%;
+  background:rgba(12,13,17,.42);border:1px solid rgba(255,255,255,.4);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.spot:hover .spot-play{transform:scale(1.09)}
+.spot:hover::after{opacity:.7}
+.spot-frame{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:3}
+.spot.playing .spot-play{opacity:0}
+.spot.playing::after{opacity:0}
+.spot:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 .spot-title{font-weight:400;font-size:clamp(1.3rem,3.4vw,2rem);letter-spacing:-.02em;margin:0;max-width:86vw;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .spot-dur{font-size:13px;color:var(--ink-dim);font-variant-numeric:tabular-nums;margin-top:6px}
@@ -365,9 +376,12 @@ html,body{margin:0;padding:0;background:var(--ground)}
       <div class="wall" id="wall" role="list" aria-label="Playlist thumbnails"></div>
     </section>
 
-    <!-- Shuffle — a random spotlight -->
+    <!-- Shuffle — a random spotlight, click to play inline -->
     <section class="panel shuffle">
-      <div class="spot"><span class="art" id="spotArt"></span></div>
+      <button class="spot" id="spot" type="button" aria-label="Play this video">
+        <span class="art" id="spotArt"></span>
+        <span class="spot-play" id="spotPlay" aria-hidden="true">&#9654;</span>
+      </button>
       <div><h2 class="spot-title" id="spotTitle">&nbsp;</h2><div class="spot-dur" id="spotDur"></div></div>
       <button class="reshuffle" id="reshuffle" type="button" aria-label="Shuffle again">&#8635;</button>
     </section>
@@ -418,13 +432,16 @@ html,body{margin:0;padding:0;background:var(--ground)}
   var insTot    = document.getElementById("insTot");
   var insSub    = document.getElementById("insSub");
   var vstack    = document.getElementById("vstack");
+  var spot      = document.getElementById("spot");
   var spotArt   = document.getElementById("spotArt");
+  var spotPlay  = document.getElementById("spotPlay");
   var spotTitle = document.getElementById("spotTitle");
   var spotDur   = document.getElementById("spotDur");
   var reshuffle = document.getElementById("reshuffle");
 
   var isLoading = false;
   var shuffleVids = [];
+  var currentSpot = null;
 
   /* =========================================================
    *  DATA LAYER
@@ -616,7 +633,8 @@ html,body{margin:0;padding:0;background:var(--ground)}
       var d = durations[vid] || { clock:"", seconds:0 };
       totalSec += d.seconds;
       var thumbs = sn.thumbnails || {};
-      var chosen = thumbs.medium || thumbs.high || thumbs.standard || thumbs.default || {};
+      // Prefer the highest-resolution thumbnail so album covers stay crisp.
+      var chosen = thumbs.maxres || thumbs.standard || thumbs.high || thumbs.medium || thumbs.default || {};
       return {
         title:   sn.title || "Untitled",
         duration:d.clock,
@@ -679,6 +697,13 @@ html,body{margin:0;padding:0;background:var(--ground)}
   /** Set the Shuffle spotlight to a video (animated on reshuffle). */
   function setSpot(v, animate){
     if(!v){ return; }
+    currentSpot = v;
+    // drop any inline player from the previous pick
+    var f = spot ? spot.querySelector(".spot-frame") : null; if(f) f.remove();
+    if(spot) spot.classList.remove("playing");
+    var playable = !!v.videoId;
+    if(spot){ spot.disabled = !playable; spot.style.cursor = playable ? "pointer" : "default"; }
+    if(spotPlay) spotPlay.style.display = playable ? "flex" : "none";
     var apply = function(){
       spotArt.style.backgroundImage = bgFor(v);
       spotTitle.textContent = v.title;
@@ -687,6 +712,20 @@ html,body{margin:0;padding:0;background:var(--ground)}
     };
     if(animate){ spotArt.style.opacity = 0; setTimeout(apply, 160); }
     else { apply(); }
+  }
+
+  /** Play the current spotlight video inline via a YouTube embed. */
+  function playSpot(){
+    if(!spot || !currentSpot || !currentSpot.videoId) return;
+    var old = spot.querySelector(".spot-frame"); if(old) old.remove();
+    var f = document.createElement("iframe");
+    f.className = "spot-frame";
+    f.src = "https://www.youtube.com/embed/" + encodeURIComponent(currentSpot.videoId) + "?autoplay=1&rel=0";
+    f.title = currentSpot.title || "YouTube video";
+    f.setAttribute("allow", "autoplay; encrypted-media; picture-in-picture; fullscreen");
+    f.setAttribute("allowfullscreen", "");
+    spot.appendChild(f);
+    spot.classList.add("playing");
   }
 
   /** Paint the result view (Insights timeline + Wall + Shuffle) from a playlist object. */
@@ -898,6 +937,7 @@ html,body{margin:0;padding:0;background:var(--ground)}
     dots.forEach(function(d){ d.addEventListener("click", function(){ toPanel(+d.getAttribute("data-i")); }); });
     window.addEventListener("resize", updateChrome);
   }
+  if(spot){ spot.addEventListener("click", playSpot); }
   if(reshuffle){
     reshuffle.addEventListener("click", function(){
       if(!shuffleVids.length) return;
