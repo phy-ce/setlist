@@ -67,3 +67,8 @@ Static site — host it anywhere:
 ## For maintainers: the build step
 
 `index.html` is **generated from `index.html.template`.** The template's `@font-face` blocks hold placeholder tokens (`@@SORA300@@`, `@@SORA400@@`, `@@SORA600@@`, `@@SORA700@@`); a build step injects the base64-encoded **Sora** font data into them to produce the final self-contained file. **Edit the template, not the generated `index.html`,** then re-run the injection.
+
+## License
+
+[MIT](LICENSE) © 2026 phy-ce. Free to use, modify, and redistribute — just keep the
+copyright and license notice (i.e. credit the original author when you use it).
