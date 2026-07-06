@@ -70,5 +70,4 @@ Static site — host it anywhere:
 
 ## License
 
-[MIT](LICENSE) © 2026 phy-ce. Free to use, modify, and redistribute — just keep the
-copyright and license notice (i.e. credit the original author when you use it).
+[MIT](LICENSE) © 2026 phy-ce
